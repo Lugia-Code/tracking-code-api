@@ -393,6 +393,98 @@ motoGroup.MapDelete("/{chassi}", async (string chassi, MotosDbContext db) =>
 .WithSummary("Remove uma moto e libera a tag associada")
 .WithOpenApi();
 
+// Endpoints de Tags (CRUD
+var tagGroup = app.MapGroup("/api/v1/tags").WithTags("Tags").WithOpenApi();
+
+tagGroup.MapGet("/", async (MotosDbContext db) =>
+{
+    var tags = await db.Tags.ToListAsync();
+    return Results.Ok(tags);
+})
+.WithSummary("Retorna todas as tags");
+
+tagGroup.MapGet("/{codigo}", async (string codigo, MotosDbContext db) =>
+{
+    var tag = await db.Tags.FindAsync(codigo);
+    return tag != null ? Results.Ok(tag) : Results.NotFound();
+})
+.WithSummary("Retorna uma tag pelo código");
+
+tagGroup.MapPost("/", async (Tag tag, MotosDbContext db) =>
+{
+    try
+    {
+        // Verificar se já existe
+        var existente = await db.Tags.FindAsync(tag.CodigoTag);
+        if (existente != null)
+        {
+            return Results.BadRequest("Já existe uma tag com este código");
+        }
+
+        tag.DataVinculo = DateTime.Now;
+        tag.Status = "inativo"; // Nova tag sempre inativa
+        tag.Chassi = null;
+        
+        db.Tags.Add(tag);
+        await db.SaveChangesAsync();
+        return Results.Created($"/api/v1/tags/{tag.CodigoTag}", tag);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+})
+.WithSummary("Cria uma nova tag");
+
+tagGroup.MapPut("/{codigo}", async (string codigo, Tag tag, MotosDbContext db) =>
+{
+    try
+    {
+        var existingTag = await db.Tags.FindAsync(codigo);
+        if (existingTag == null)
+            return Results.NotFound();
+
+        // Só permite alterar status se não estiver vinculada a uma moto
+        if (string.IsNullOrEmpty(existingTag.Chassi))
+        {
+            existingTag.Status = tag.Status;
+        }
+
+        await db.SaveChangesAsync();
+        return Results.NoContent();
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+})
+.WithSummary("Atualiza uma tag existente");
+
+tagGroup.MapDelete("/{codigo}", async (string codigo, MotosDbContext db) =>
+{
+    try
+    {
+        var tag = await db.Tags.FindAsync(codigo);
+        if (tag == null)
+            return Results.NotFound();
+
+        // Só permite deletar se não estiver vinculada a uma moto
+        if (!string.IsNullOrEmpty(tag.Chassi))
+        {
+            return Results.BadRequest("Não é possível deletar uma tag vinculada a uma moto");
+        }
+
+        db.Tags.Remove(tag);
+        await db.SaveChangesAsync();
+        return Results.NoContent();
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+})
+.WithSummary("Deleta uma tag");
+
 
 // CRUD para a Entidade Usuario
 var usuarioGroup = app.MapGroup("/usuarios").WithTags("Usuarios");
