@@ -5,8 +5,9 @@ namespace tracking_code_api.Dtos.TagDtos;
 public record TagCreateDto
 {
     [Required(ErrorMessage = "O Código da Tag é obrigatório.")]
-    public string CodigoTag { get; set; }
-    
+    [StringLength(8, ErrorMessage = "O código da tag deve ter no máximo 8 caracteres.")]
+    public string CodigoTag { get; set; } = string.Empty;
+
     // O status e a data de vínculo podem ser gerados pelo servidor
     // na criação. Não precisam vir no DTO.
 }

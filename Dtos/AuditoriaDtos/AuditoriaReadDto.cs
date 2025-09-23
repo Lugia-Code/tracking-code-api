@@ -1,3 +1,5 @@
+using tracking_code_api.Entities;
+
 namespace tracking_code_api.Dtos.AuditoriaDtos;
 
 public record AuditoriaReadDto

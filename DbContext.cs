@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using tracking_code_api.Entities;
 
 namespace tracking_code_api
 {
@@ -6,6 +7,11 @@ namespace tracking_code_api
     {
         public MotosDbContext(DbContextOptions<MotosDbContext> options) : base(options)
         {
+            // Desabilitar lazy loading para evitar referências circulares
+            ChangeTracker.LazyLoadingEnabled = false;
+        
+            // Opcional: Desabilitar detecção automática de mudanças para melhor performance
+            ChangeTracker.AutoDetectChangesEnabled = false;
         }
 
         // DbSets para as entidades.

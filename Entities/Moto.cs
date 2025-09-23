@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
-namespace tracking_code_api;
+namespace tracking_code_api.Entities;
 
 [Table("MOTO")]
 public class Moto
@@ -22,8 +22,9 @@ public class Moto
     public DateTime DataCadastro { get; set; } = DateTime.Now;
     
     [Column("codigo_tag")]
-    [Required] 
+    [Required]
     public string CodigoTag { get; set; }
+    
     [Required]
     [Column("id_setor")]
     public int IdSetor { get; set; }
@@ -32,9 +33,12 @@ public class Moto
     public int? IdAudit { get; set; }
 
     // Propriedades de navegação
+    [JsonIgnore]
     public virtual Tag Tag { get; set; }
     
+    [JsonIgnore]
     public virtual Setor Setor { get; set; }
 
+    [JsonIgnore]
     public virtual AuditoriaMovimentacao? Auditoria { get; set; }
 }
