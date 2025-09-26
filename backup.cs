@@ -1,108 +1,77 @@
-//motoGroup.MapPost("/", async (MotoCreateDto motoDto) =>
+//motoGroup.MapGet("/", async (MotosDbContext db, int page = 1, int pageSize = 10) =>
+// {
+//     try
 //     {
+//         var skip = (page - 1) * pageSize;
+//         
+//         var motosData = await db.Motos
+//             .AsNoTracking()
+//             .Skip(skip)
+//             .Take(pageSize)
+//             .Select(m => new
+//             {
+//                 Chassi = m.Chassi,
+//                 Placa = m.Placa,
+//                 Modelo = m.Modelo,
+//                 DataCadastro = m.DataCadastro,
+//                 IdSetor = m.IdSetor,
+//                 CodigoTag = m.CodigoTag
+//             })
+//             .ToListAsync();
 // 
-//         // criar scope para obter o DbContext (não fica como argumento do endpoint)
-//         using var scope = app.Services.CreateScope();
-//         var db = scope.ServiceProvider.GetRequiredService<MotosDbContext>();
+//         // Query separada para setores
+//         var setorIds = motosData.Select(m => m.IdSetor).Distinct().ToList();
+//         var setoresDict = await db.Setores
+//             .AsNoTracking()
+//             .Where(s => setorIds.Contains(s.IdSetor))
+//             .ToDictionaryAsync(s => s.IdSetor, s => new { s.IdSetor, s.Nome });
 // 
-//         // Validar se já existe uma moto com o mesmo chassi
-//         if (await db.Motos.AnyAsync(m => m.Chassi == motoDto.Chassi))
+//         // Query separada para tags
+//         var tagCodes = motosData.Select(m => m.CodigoTag).Distinct().ToList();
+//         var tagsDict = await db.Tags
+//             .AsNoTracking()
+//             .Where(t => tagCodes.Contains(t.CodigoTag))
+//             .ToDictionaryAsync(t => t.CodigoTag, t => new { t.CodigoTag, t.Status, t.DataVinculo });
+// 
+//         // Montar resultado final
+//         var result = motosData.Select(m => new
 //         {
-//             return Results.BadRequest("Já existe uma moto com este chassi");
-//         }
+//             chassi = m.Chassi,
+//             placa = m.Placa,
+//             modelo = m.Modelo,
+//             dataCadastro = m.DataCadastro,
+//             setor = setoresDict.ContainsKey(m.IdSetor) 
+//                 ? new { idSetor = setoresDict[m.IdSetor].IdSetor, nome = setoresDict[m.IdSetor].Nome }
+//                 : null,
+//             tag = tagsDict.ContainsKey(m.CodigoTag) 
+//                 ? new { 
+//                     codigoTag = tagsDict[m.CodigoTag].CodigoTag, 
+//                     status = tagsDict[m.CodigoTag].Status, 
+//                     dataVinculo = tagsDict[m.CodigoTag].DataVinculo 
+//                 }
+//                 : null
+//         }).ToList();
 // 
-//         // Validar se já existe uma moto com a mesma placa (se fornecida)
-//         if (!string.IsNullOrEmpty(motoDto.Placa) &&
-//             await db.Motos.AnyAsync(m => m.Placa == motoDto.Placa))
+//         var totalCount = await db.Motos.CountAsync();
+//         
+//         return Results.Ok(new
 //         {
-//             return Results.BadRequest("Já existe uma moto com esta placa");
-//         }
-// 
-//         // Validar se o setor existe
-//         if (!await db.Setores.AnyAsync(s => s.IdSetor == motoDto.IdSetor))
-//         {
-//             return Results.BadRequest("Setor não encontrado");
-//         }
-// 
-//         // Validar se a tag existe
-//         var tag = await db.Tags.FindAsync(motoDto.CodigoTag);
-//         if (tag == null)
-//         {
-//             return Results.BadRequest("Tag não encontrada");
-//         }
-// 
-//         // Validar se a tag já está vinculada a outra moto
-//         if (await db.Motos.AnyAsync(m => m.CodigoTag == motoDto.CodigoTag))
-//         {
-//             return Results.BadRequest("Esta tag já está vinculada a outra moto");
-//         }
-// 
-//         var moto = new Moto
-//         {
-//             Chassi = motoDto.Chassi,
-//             Placa = motoDto.Placa,
-//             Modelo = motoDto.Modelo,
-//             IdSetor = motoDto.IdSetor,
-//             CodigoTag = motoDto.CodigoTag,
-//             DataCadastro = DateTime.Now
-//         };
-// 
-//         // Atualizar o status da tag para "ativo" quando vinculada à moto
-//         tag.VincularMoto(moto.Chassi);
-// 
-//         db.Motos.Add(moto);
-//         await db.SaveChangesAsync();
-// 
-//         // Carregar dados relacionados para retorno
-//         await db.Entry(moto).Reference(m => m.Setor).LoadAsync();
-//         await db.Entry(moto).Reference(m => m.Tag).LoadAsync();
-// 
-//         var resultDto = new MotoReadDto(
-//             moto.Chassi,
-//             moto.Placa,
-//             moto.Modelo,
-//             moto.DataCadastro,
-//             new SetorReadDto(moto.Setor.IdSetor, moto.Setor.Nome),
-//             new TagReadDto(moto.Tag.CodigoTag, moto.Tag.Status, moto.Tag.DataVinculo, moto.Tag.Chassi)
-//         );
-// 
-//         return Results.Created($"/api/v1/motos/{moto.Chassi}", resultDto);
-//     })
-//     .WithSummary("Cadastra uma nova moto (tag obrigatória)")
-//     .WithOpenApi();
-// //.AddEndpointFilter<IdempotentAPIEndpointFilter>();
-
-
-
-
-//// Endpoint de POST usando o DTO
-// motoGroup.MapPost("/", async (MotoCreateDto motoDto, MotosDbContext db) =>
+//             data = result,
+//             pagination = new
+//             {
+//                 page,
+//                 pageSize,
+//                 totalCount,
+//                 totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+//             }
+//         });
+//     }
+//     catch (Exception ex)
 //     {
-//         var moto = new Moto
-//         {
-//             Placa = motoDto.Placa,
-//             Chassi = motoDto.Chassi,
-//             Modelo = motoDto.Modelo,
-//             IdSetor = string.IsNullOrEmpty(motoDto.Placa) ? 4 : motoDto.IdSetor, // ajuste direto
-//             CodigoTag = motoDto.CodigoTag
-//         };
+//         Console.WriteLine($"Erro: {ex}");
+//         return Results.Problem("Erro interno do servidor", statusCode: 500);
+//     }
+// })
+// .WithSummary("Retorna todas as motos com paginação")
+// .WithOpenApi();
 // 
-//         db.Motos.Add(moto);
-//         await db.SaveChangesAsync();
-// 
-//         // Carrega Setor e Tag para DTO
-//         await db.Entry(moto).Reference(m => m.Setor).LoadAsync();
-//         await db.Entry(moto).Reference(m => m.Tag).LoadAsync();
-// 
-//         var resultDto = new MotoReadDto(
-//             moto.Chassi,
-//             moto.Placa ?? string.Empty,
-//             moto.Modelo,
-//             moto.DataCadastro,
-//             moto.Setor != null ? new SetorReadDto(moto.Setor.IdSetor, moto.Setor.Nome) : null,
-//             moto.Tag != null ? new TagReadDto(moto.Tag.CodigoTag, moto.Tag.Status) : null
-//         );
-// 
-//         return TypedResults.Created($"/motos/{moto.Chassi}", resultDto);
-//     })
-//     .WithSummary("Cadastra uma nova moto.");

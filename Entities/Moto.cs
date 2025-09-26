@@ -22,7 +22,6 @@ public class Moto
     public DateTime DataCadastro { get; set; } = DateTime.Now;
     
     [Column("codigo_tag")]
-    [Required]
     public string CodigoTag { get; set; }
     
     [Required]

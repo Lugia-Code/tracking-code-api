@@ -23,5 +23,6 @@ public class Setor
     
     [JsonIgnore]
     public ICollection<Moto> Motos { get; set; } = new List<Moto>(); // Adicionamos uma coleção para o relacionamento
+    [JsonIgnore]
     public ICollection<Localizacao> Localizacoes { get; set; } = new List<Localizacao>();
 }

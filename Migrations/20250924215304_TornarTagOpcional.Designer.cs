@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using tracking_code_api;
@@ -11,9 +12,11 @@ using tracking_code_api;
 namespace tracking_code_api.Migrations
 {
     [DbContext(typeof(MotosDbContext))]
-    partial class MotosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250924215304_TornarTagOpcional")]
+    partial class TornarTagOpcional
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

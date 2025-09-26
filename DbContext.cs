@@ -62,7 +62,7 @@ namespace tracking_code_api
                 .WithOne(t => t.Moto)
                 .HasForeignKey<Moto>(m => m.CodigoTag)
                 .HasPrincipalKey<Tag>(t => t.CodigoTag)
-                .IsRequired(true);
+                .IsRequired(false);
             
             // Moto (Um) -> AuditoriaMovimentacao (Um)
             modelBuilder.Entity<Moto>()
