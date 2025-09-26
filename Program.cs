@@ -840,33 +840,84 @@ motoGroup.MapGet("/setor/{idSetor}", async (int idSetor, MotosDbContext db, int 
 
         var skip = (page - 1) * pageSize;
         
-        // Buscar motos do setor com paginação
-        var motos = await db.Motos
+        // CORREÇÃO: Não usar Include() - fazer queries separadas para evitar nullable errors
+        var motosData = await db.Motos
             .AsNoTracking()
             .Where(m => m.IdSetor == idSetor)
-            .Include(m => m.Setor)
-            .Include(m => m.Tag)
             .Skip(skip)
             .Take(pageSize)
-            .Select(m => new {
-                chassi = m.Chassi,
-                placa = m.Placa,
-                modelo = m.Modelo,
-                dataCadastro = m.DataCadastro,
-                setor = new {
-                    idSetor = m.Setor.IdSetor,
-                    nome = m.Setor.Nome
-                },
-                tag = new {
-                    codigoTag = m.Tag.CodigoTag,
-                    status = m.Tag.Status,
-                    dataVinculo = m.Tag.DataVinculo,
-                    chassi = m.Tag.Chassi
-                }
+            .Select(m => new
+            {
+                Chassi = m.Chassi,
+                Placa = m.Placa,
+                Modelo = m.Modelo,
+                DataCadastro = m.DataCadastro,
+                IdSetor = m.IdSetor,
+                CodigoTag = m.CodigoTag
             })
             .ToListAsync();
 
-        var totalCount = await db.Motos.CountAsync(m => m.IdSetor == idSetor);
+        // Se não há motos neste setor, retornar resposta vazia mas válida
+        if (!motosData.Any())
+        {
+            var totalCount = await db.Motos.CountAsync(m => m.IdSetor == idSetor);
+            
+            return Results.Ok(new {
+                setor = new {
+                    idSetor = setor.IdSetor,
+                    nome = setor.Nome
+                },
+                data = new List<object>(), // Lista vazia
+                pagination = new {
+                    page,
+                    pageSize,
+                    totalCount = 0,
+                    totalPages = 0
+                },
+                message = "Nenhuma moto encontrada neste setor"
+            });
+        }
+
+        // Buscar tags apenas para motos que têm CodigoTag não nulo
+        var tagCodes = motosData
+            .Where(m => !string.IsNullOrEmpty(m.CodigoTag))
+            .Select(m => m.CodigoTag!)
+            .Distinct()
+            .ToList();
+
+        var tagsDict = new Dictionary<string, object>();
+        if (tagCodes.Any())
+        {
+            tagsDict = await db.Tags
+                .AsNoTracking()
+                .Where(t => tagCodes.Contains(t.CodigoTag))
+                .ToDictionaryAsync(
+                    t => t.CodigoTag, 
+                    t => new {
+                        codigoTag = t.CodigoTag,
+                        status = t.Status,
+                        dataVinculo = t.DataVinculo,
+                        chassi = t.Chassi
+                    } as object
+                );
+        }
+
+        // Montar resultado
+        var motos = motosData.Select(m => new {
+            chassi = m.Chassi,
+            placa = m.Placa,
+            modelo = m.Modelo,
+            dataCadastro = m.DataCadastro,
+            setor = new {
+                idSetor = setor.IdSetor,
+                nome = setor.Nome
+            },
+            tag = !string.IsNullOrEmpty(m.CodigoTag) && tagsDict.ContainsKey(m.CodigoTag)
+                ? tagsDict[m.CodigoTag]
+                : null
+        }).ToList();
+
+        var totalCountFinal = await db.Motos.CountAsync(m => m.IdSetor == idSetor);
         
         var response = new {
             setor = new {
@@ -877,8 +928,8 @@ motoGroup.MapGet("/setor/{idSetor}", async (int idSetor, MotosDbContext db, int 
             pagination = new {
                 page,
                 pageSize,
-                totalCount,
-                totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+                totalCount = totalCountFinal,
+                totalPages = (int)Math.Ceiling((double)totalCountFinal / pageSize)
             }
         };
 
@@ -886,9 +937,19 @@ motoGroup.MapGet("/setor/{idSetor}", async (int idSetor, MotosDbContext db, int 
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { erro = ex.Message });
+        // Log detalhado para debug
+        Console.WriteLine($"Erro no setor {idSetor}: {ex}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        
+        return Results.Problem(
+            detail: ex.Message,
+            statusCode: 500,
+            title: "Erro interno do servidor"
+        );
     }
-});
+})
+.WithSummary("Retorna motos de um setor específico com paginação")
+.WithOpenApi();
 
 // Endpoints de Tags (CRUD
 // GET /api/v1/tags
