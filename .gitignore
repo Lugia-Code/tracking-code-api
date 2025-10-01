@@ -21,7 +21,7 @@ bld/
 *.nupkg
 packages/
 
-# Connection strings (IMPORTANTE!)
+# Connection strings
 appsettings.json
 appsettings.Development.json
 appsettings.Production.json

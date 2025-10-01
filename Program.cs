@@ -86,7 +86,8 @@ builder.Services.AddHealthChecksUI(opt =>
     opt.SetEvaluationTimeInSeconds(10);
     opt.MaximumHistoryEntriesPerEndpoint(10);
     opt.SetApiMaxActiveRequests(1);
-    opt.AddHealthCheckEndpoint("motos-api", "/health");
+    // CORREÇÃO: Use a URL completa com localhost
+    opt.AddHealthCheckEndpoint("motos-api", "http://localhost:5117/health"); 
 }).AddInMemoryStorage();
 
 // Rate Limiter
@@ -191,6 +192,7 @@ motoGroup.MapGet("/tags-disponiveis", async (MotosDbContext db) =>
         return Results.Ok(resultado);
     })
 .WithSummary("Retorna as tags disponíveis para cadastro de moto")
+.WithDescription("Lista todas as tags RFID que não estão vinculadas a nenhuma motocicleta e estão disponíveis para uso.")
 .WithOpenApi();
 
 motoGroup.MapGet("/", async (MotosDbContext db, int page = 1, int pageSize = 10) =>
@@ -274,6 +276,16 @@ motoGroup.MapGet("/", async (MotosDbContext db, int page = 1, int pageSize = 10)
     }
 })
 .WithSummary("Retorna todas as motos com paginação")
+.WithDescription(@"Lista todas as motocicletas cadastradas no sistema com suporte a paginação.
+
+Parâmetros:
+- page: Número da página (padrão: 1)
+- pageSize: Quantidade de itens por página (padrão: 10)
+
+Retorna:
+- Lista de motos com informações de setor e tag vinculada
+- Metadados de paginação (total de itens, páginas, etc.)
+- Links HATEOAS para navegação")
 .WithOpenApi();
 
 // Endpoint para buscar moto por chassi (se você quiser um específico para busca)
@@ -364,6 +376,7 @@ motoGroup.MapGet("/buscar/chassi/{chassi}", async (string chassi, MotosDbContext
     }
 })
 .WithSummary("Busca uma moto pelo chassi")
+.WithDescription("Retorna os detalhes completos de uma motocicleta através do número do chassi.")
 .WithOpenApi();
 
 // Endpoint para buscar moto por placa
@@ -454,6 +467,7 @@ motoGroup.MapGet("/buscar/placa/{placa}", async (string placa, MotosDbContext db
     }
 })
 .WithSummary("Busca uma moto pela placa")
+.WithDescription("Retorna os detalhes completos de uma motocicleta através da placa.")
 .WithOpenApi();
 
 motoGroup.MapPost("/", async (MotoCreateDto motoDto, MotosDbContext db) =>
@@ -548,12 +562,10 @@ motoGroup.MapPost("/", async (MotoCreateDto motoDto, MotosDbContext db) =>
             }
         };
 
-        // VERSÃO COM HATEOAS (se você estiver usando)
+        // VERSÃO COM HATEOAS
         var hateoasResponse = HateoasHelper.AddMotoLinks(moto.Chassi, motoResponse);
         return Results.Created($"/api/v1/motos/{moto.Chassi}", hateoasResponse);
-        
-        // OU VERSÃO SEM HATEOAS (descomente se não usar HATEOAS)
-        // return Results.Created($"/api/v1/motos/{moto.Chassi}", motoResponse);
+
     }
     catch (ArgumentException ex)
     {
@@ -577,6 +589,30 @@ motoGroup.MapPost("/", async (MotoCreateDto motoDto, MotosDbContext db) =>
     }
 })
 .WithSummary("Cadastra uma nova moto e ativa automaticamente a tag associada")
+.WithDescription(@"Cria uma nova motocicleta no sistema e vincula uma tag RFID para rastreamento.
+
+Regras de negócio:
+- O chassi deve ser único no sistema
+- A placa deve ser única (se fornecida)
+- A tag deve existir e estar disponível (não vinculada a outra moto)
+- O setor deve existir no sistema
+- Ao criar a moto, a tag é automaticamente ativada e vinculada
+
+Validações:
+- Chassi: obrigatório, único
+- Placa: opcional, mas se fornecida deve ser única
+- Modelo: obrigatório
+- IdSetor: obrigatório, deve existir
+- CodigoTag: obrigatório, deve existir e estar disponível
+
+Exemplo de payload:
+{
+  'chassi': '9BWZZZ377VT004251',
+  'placa': 'ABC1234',
+  'modelo': 'Honda CG 160 Fan',
+  'idSetor': 1,
+  'codigoTag': 'TAG001'
+}")
 .WithOpenApi();
 
 motoGroup.MapPut("/{chassi}", async (string chassi, MotoUpdateDto updatedMoto, MotosDbContext db) =>
@@ -613,10 +649,6 @@ motoGroup.MapPut("/{chassi}", async (string chassi, MotoUpdateDto updatedMoto, M
             existingMoto.IdSetor = updatedMoto.IdSetor.Value;
         }
 
-        // Para gerenciamento de tags, use os endpoints específicos:
-        // PUT /api/v1/motos/{chassi}/tag para vincular nova tag
-        // DELETE /api/v1/motos/{chassi}/tag para desvincular tag
-
         // Atualizar outros campos
         if (!string.IsNullOrEmpty(updatedMoto.Placa))
             existingMoto.Placa = updatedMoto.Placa;
@@ -646,6 +678,23 @@ motoGroup.MapPut("/{chassi}", async (string chassi, MotoUpdateDto updatedMoto, M
     }
 })
 .WithSummary("Atualiza dados básicos da moto (placa, modelo, setor) - use endpoints específicos para gerenciar tags")
+.WithDescription(@"Atualiza informações básicas de uma motocicleta existente.
+
+Campos atualizáveis:
+- Placa (deve ser única)
+- Modelo
+- IdSetor (deve existir)
+
+Nota: Para gerenciar tags, use os endpoints específicos:
+- PUT /api/v1/motos/{chassi}/tag - para vincular nova tag
+- PATCH /api/v1/motos/{chassi}/desvincular-tag - para desvincular tag
+
+Exemplo de payload:
+{
+  'placa': 'XYZ9876',
+  'modelo': 'Honda CG 160 Start',
+  'idSetor': 2
+}")
 .WithOpenApi();
 
 motoGroup.MapDelete("/{chassi}", async (string chassi, MotosDbContext db) =>
@@ -684,6 +733,11 @@ motoGroup.MapDelete("/{chassi}", async (string chassi, MotosDbContext db) =>
         }
     })
     .WithSummary("Remove uma moto e desativa automaticamente a tag associada")
+    .WithDescription(@"Remove permanentemente uma motocicleta do sistema.
+
+        Ação automática:
+        - Se a moto possuir uma tag vinculada, ela será automaticamente desvinculada e desativada
+        - A tag ficará disponível para ser vinculada a outra moto")
     .WithOpenApi();
 
 // Endpoint para vincular nova tag a uma moto
@@ -745,6 +799,16 @@ motoGroup.MapPut("/{chassi}/tag", async (string chassi, [FromBody] VincularTagDt
         }
     })
     .WithSummary("Vincula uma nova tag a uma moto")
+    .WithDescription(@"Vincula ou substitui a tag RFID de uma motocicleta.
+    Regras:
+    - A tag deve existir e estar disponível
+    - Se a moto já possuir uma tag, ela será automaticamente desvinculada
+    - A nova tag será ativada e vinculada à moto
+
+    Exemplo de payload:
+    {
+    'codigoTag': 'TAG002'
+    }")
     .WithOpenApi();
 
 motoGroup.MapPatch("/{chassi}/desvincular-tag", async (string chassi, MotosDbContext db) =>
@@ -825,6 +889,11 @@ motoGroup.MapPatch("/{chassi}/desvincular-tag", async (string chassi, MotosDbCon
         }
     })
     .WithSummary("Desvincula a tag de uma moto")
+    .WithDescription(@"Remove o vínculo entre uma motocicleta e sua tag RFID.
+    Ação realizada:
+    - A tag é desvinculada e desativada
+    - A moto fica sem tag associada
+    - A tag volta a ficar disponível para vinculação")
     .WithOpenApi();
 
 motoGroup.MapGet("/setor/{idSetor}", async (int idSetor, MotosDbContext db, int page = 1, int pageSize = 10) =>
@@ -949,6 +1018,12 @@ motoGroup.MapGet("/setor/{idSetor}", async (int idSetor, MotosDbContext db, int 
     }
 })
 .WithSummary("Retorna motos de um setor específico com paginação")
+.WithDescription(@"Lista todas as motocicletas de um determinado setor.
+
+Parâmetros:
+- idSetor: ID do setor
+- page: Número da página (padrão: 1)
+- pageSize: Quantidade de itens por página (padrão: 10)")
 .WithOpenApi();
 
 // Endpoints de Tags (CRUD
@@ -970,6 +1045,7 @@ tagGroup.MapGet("/", async (MotosDbContext db) =>
     return Results.Ok(tags);
 })
 .WithSummary("Retorna todas as tags")
+.WithDescription("Lista todas as tags RFID cadastradas no sistema, independente do status.")
 .WithOpenApi()
 .Produces<object[]>(200); // Tipo explícito
 
@@ -988,7 +1064,8 @@ tagGroup.MapGet("/{codigo}", async (string codigo, MotosDbContext db) =>
 
     return tag != null ? Results.Ok(tag) : Results.NotFound(new { erro = "Tag não encontrada" });
 })
-.WithSummary("Retorna uma tag pelo código")
+.WithSummary("Retorna uma TAG pelo código")
+.WithDescription("Busca os detalhes de uma TAG específica através do seu código.")
 .WithOpenApi()
 .Produces<object>(200)
 .Produces<object>(404);
@@ -1032,6 +1109,15 @@ tagGroup.MapPost("/", async ([FromBody] TagCreateDto tagDto, MotosDbContext db) 
     }
 })
 .WithSummary("Cria uma nova tag")
+.WithDescription(@"Cadastra uma nova tag RFID no sistema.
+
+Por padrão, tags são criadas com status 'inativo'.
+A tag só será ativada quando vinculada a uma moto.
+
+Exemplo de payload:
+{
+  'codigoTag': 'TAG003'
+}")
 .WithOpenApi()
 .Accepts<TagCreateDto>("application/json")
 .Produces<object>(201)
@@ -1064,6 +1150,16 @@ tagGroup.MapPut("/{codigo}", async (string codigo, [FromBody] TagUpdateDto tagUp
     }
 })
 .WithSummary("Atualiza uma tag existente")
+.WithDescription(@"Atualiza o status de uma tag RFID.
+
+Restrições:
+- Só é possível alterar tags que não estejam vinculadas a motos
+- Para alterar tags vinculadas, primeiro desvincule da moto
+
+Exemplo de payload:
+{
+  'status': 'inativo'
+}")
 .WithOpenApi()
 .Accepts<TagUpdateDto>("application/json")
 .Produces(204)
@@ -1094,6 +1190,10 @@ tagGroup.MapDelete("/{codigo}", async (string codigo, MotosDbContext db) =>
     }
 })
 .WithSummary("Deleta uma tag")
+.WithDescription(@"Remove permanentemente uma tag do sistema.
+
+Restrição:
+- Só é possível deletar tags que não estejam vinculadas a motos")
 .WithOpenApi()
 .Produces(204)
 .Produces<object>(400)
@@ -1109,7 +1209,9 @@ usuarioGroup.MapGet("/", async (MotosDbContext db) =>
         var usuariosDto = usuarios.Select(u => new UsuarioReadDto(u.IdFuncionario, u.Email, u.Funcao)).ToList();
         return Results.Ok(usuariosDto);
     })
-    .WithSummary("Retorna todos os usuários.");
+    .WithSummary("Retorna todos os usuários.")
+    .WithDescription("Lista todos os usuários cadastrados no sistema.");
+
 
 usuarioGroup.MapGet("/{id}", async (int id, MotosDbContext db) =>
     {
@@ -1122,7 +1224,8 @@ usuarioGroup.MapGet("/{id}", async (int id, MotosDbContext db) =>
         var usuarioDto = new UsuarioReadDto(usuario.IdFuncionario, usuario.Email, usuario.Funcao);
         return Results.Ok(usuarioDto);
     })
-    .WithSummary("Retorna um usuário pelo ID.");
+    .WithSummary("Retorna um usuário pelo ID.")
+    .WithDescription("Busca os detalhes de um usuário específico através do ID.");
 
 usuarioGroup.MapPost("/", async (UsuarioCreateDto usuarioDto, MotosDbContext db) =>
     {
@@ -1143,6 +1246,14 @@ usuarioGroup.MapPost("/", async (UsuarioCreateDto usuarioDto, MotosDbContext db)
         return Results.Created($"/usuarios/{usuario.IdFuncionario}", usuarioRetornoDto);
     })
     .WithSummary("Cria um novo usuário.")
+    .WithDescription(@"Cadastra um novo usuário no sistema.
+
+    Exemplo de payload:
+    {   
+    'email': 'joao.silva@empresa.com',
+    'senha': 'SenhaSegura@123',
+    'papel': 'Admin'
+    }")
     .AddEndpointFilter<IdempotentAPIEndpointFilter>();
 
 usuarioGroup.MapPut("/{id}", async (int id, UsuarioUpdateDto usuarioDto, MotosDbContext db) =>
@@ -1159,7 +1270,17 @@ usuarioGroup.MapPut("/{id}", async (int id, UsuarioUpdateDto usuarioDto, MotosDb
         await db.SaveChangesAsync();
         return Results.NoContent();
     })
-    .WithSummary("Atualiza um usuário existente.");
+    .WithSummary("Atualiza um usuário existente.")
+    .WithDescription(@"Atualiza as informações de um usuário.
+
+    Todos os campos são opcionais - informe apenas os que deseja atualizar.
+
+    Exemplo de payload:
+    {
+    'email': 'novo.email@empresa.com',
+    'senha': 'NovaSenha@456',
+    'papel': 'Operador'
+    }");
 
 usuarioGroup.MapDelete("/{id}", async (int id, MotosDbContext db) =>
     {
@@ -1171,7 +1292,8 @@ usuarioGroup.MapDelete("/{id}", async (int id, MotosDbContext db) =>
         await db.SaveChangesAsync();
         return Results.NoContent();
     })
-    .WithSummary("Deleta um usuário.");
+    .WithSummary("Deleta um usuário.")
+    .WithDescription("Remove permanentemente um usuário do sistema.");
 
 
 // CRUD para a Entidade Setor
@@ -1183,7 +1305,9 @@ setorGroup.MapGet("/", async (MotosDbContext db) =>
         var setoresDto = setores.Select(s => new SetorReadDto(s.IdSetor, s.Nome)).ToList();
         return Results.Ok(setoresDto);
     })
-    .WithSummary("Retorna todos os setores.");
+    .WithSummary("Retorna todos os setores.")
+    .WithDescription("Lista todos os setores cadastrados no sistema.");
+
 
 setorGroup.MapGet("/{id}", async (int id, MotosDbContext db) =>
     {
@@ -1196,7 +1320,8 @@ setorGroup.MapGet("/{id}", async (int id, MotosDbContext db) =>
         var setorDto = new SetorReadDto(setor.IdSetor, setor.Nome);
         return Results.Ok(setorDto);
     })
-    .WithSummary("Retorna um setor pelo ID.");
+    .WithSummary("Retorna um setor pelo ID.")
+    .WithDescription("Busca os detalhes de um setor específico através do ID.");
 
 setorGroup.MapPost("/", async (SetorCreateDto setorDto, MotosDbContext db) =>
     {
@@ -1213,6 +1338,12 @@ setorGroup.MapPost("/", async (SetorCreateDto setorDto, MotosDbContext db) =>
         return Results.Created($"/setores/{setor.IdSetor}", setorRetornoDto);
     })
     .WithSummary("Cria um novo setor.")
+    .WithDescription(@"Cadastra um novo setor no sistema.
+
+    Exemplo de payload:
+    {
+    'nome': 'Na rua'
+    }")
     .AddEndpointFilter<IdempotentAPIEndpointFilter>();
 
 setorGroup.MapPut("/{id}", async (int id, SetorUpdateDto setorDto, MotosDbContext db) =>
@@ -1226,7 +1357,13 @@ setorGroup.MapPut("/{id}", async (int id, SetorUpdateDto setorDto, MotosDbContex
         await db.SaveChangesAsync();
         return Results.NoContent();
     })
-    .WithSummary("Atualiza um setor existente.");
+    .WithSummary("Atualiza um setor existente.")
+    .WithDescription(@"Atualiza as informações de um setor.
+
+    Exemplo de payload:
+    {
+    'id_setor': 3
+    }");
 
 setorGroup.MapDelete("/{id}", async (int id, MotosDbContext db) =>
     {
@@ -1238,7 +1375,8 @@ setorGroup.MapDelete("/{id}", async (int id, MotosDbContext db) =>
         await db.SaveChangesAsync();
         return Results.NoContent();
     })
-    .WithSummary("Deleta um setor.");
+    .WithSummary("Deleta um setor.")
+    .WithDescription("Remove permanentemente um setor do sistema.");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -1248,3 +1386,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program { }
