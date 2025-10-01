@@ -157,7 +157,7 @@ Os exemplos a seguir mostram as requisições HTTP e as respostas obtidas no amb
 | Buscar por chassi | `GET` | `/api/v1/motos/buscar/chassi/9BWZZZ377VT004251` | Busca específica. ![Response GET Moto por Chassi](docs/get_moto_by_chassi.png) |
 | Buscar por placa | `GET` | `/api/v1/motos/buscar/placa/ABC1234` | Busca específica. ![Response GET Moto por Placa](docs/get_moto_by_placa.png) |
 | **Criar nova moto** | `POST` | `/api/v1/motos` | Resposta **201 Created**. ![Response POST Moto](docs/post_moto.png) |
-| **Desvincular tag** | `PATCH` | `/api/v1/motos/9BWZZZ377VT004251/desvincular-tag` | Resposta **200 OK**. ![Response PATCH Desvincular Tag](docs/patch_desvincular_tag.png) |
+| **Desvincular tag** | `PATCH` | `/api/v1/motos/9BWZZZ377VT004251/desvincular-tag` | Resposta **200 OK**. ![Response PATCH Desvincular Tag](docs/patch_desvincular_tag\.png) |
 | Moto Pós Desvínculo | `GET` | `/api/v1/motos/buscar/chassi/9BWZZZ377VT004251` | Verifica a moto sem a tag. ![Response GET Moto Pós Desvínculo](docs/get_moto_pos_desvinculo.png) |
 | **Deletar moto** | `DELETE` | `/api/v1/motos/9BWZZZ377VT004251` | Resposta **204 No Content**. ![Response DELETE Moto](docs/delete_moto.png) |
 
