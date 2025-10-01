@@ -105,7 +105,7 @@ Este sistema foi desenvolvido para gerenciar o rastreamento de **motocicletas co
 
 | Ação | Método | Endpoint | Observações |
 | :--- | :--- | :--- | :--- |
-| Listar todas | `GET` | `/api/v1/motos?page=1&pageSize=10` | Inclui paginação e links HATEOAS. |
+| Listar todas | `GET` | `/api/v1/motos?page=1&pageSize=10` | Inclui paginação e links HATEOAS. | ![Retorna todas as motos com paginação](docs/get_motos_com_paginacao.png) |
 | Buscar por chassi | `GET` | `/api/v1/motos/buscar/chassi/9BWZZZ377VT004251` | |
 | Buscar por placa | `GET` | `/api/v1/motos/buscar/placa/ABC1234` | |
 | Listar por setor | `GET` | `/api/v1/motos/setor/1?page=1&pageSize=10` | |
@@ -144,36 +144,41 @@ Este sistema foi desenvolvido para gerenciar o rastreamento de **motocicletas co
 }
 ````
 
+## 📚 Exemplos de Uso dos Endpoints (Com Prints do Scalar)
+
+Os exemplos a seguir mostram as requisições HTTP e as respostas obtidas no ambiente de desenvolvimento usando o Scalar (Swagger).
+
+### 🏍️ Motos
+
+| Ação | Método | Endpoint | Observações |
+| :--- | :--- | :--- | :--- |
+| Listar todas (com paginação) | `GET` | `/api/v1/motos?page=1&pageSize=10` | Inclui paginação e HATEOAS. ![Response GET Motos](docs/get_motos_com_paginacao.png) |
+| Listar por setor | `GET` | `/api/v1/motos/setor/1?page=1&pageSize=10` | Filtra por setor. ![Response GET Motos por Setor](docs/get_motos_por_setor.png) |
+| Buscar por chassi | `GET` | `/api/v1/motos/buscar/chassi/9BWZZZ377VT004251` | Busca específica. ![Response GET Moto por Chassi](docs/get_moto_by_chassi.png) |
+| Buscar por placa | `GET` | `/api/v1/motos/buscar/placa/ABC1234` | Busca específica. ![Response GET Moto por Placa](docs/get_moto_by_placa.png) |
+| **Criar nova moto** | `POST` | `/api/v1/motos` | Resposta **201 Created**. ![Response POST Moto](docs/post_moto.png) |
+| **Desvincular tag** | `PATCH` | `/api/v1/motos/9BWZZZ377VT004251/desvincular-tag` | Resposta **200 OK**. ![Response PATCH Desvincular Tag](docs/patch_desvincular_tag.png) |
+| Moto Pós Desvínculo | `GET` | `/api/v1/motos/buscar/chassi/9BWZZZ377VT004251` | Verifica a moto sem a tag. ![Response GET Moto Pós Desvínculo](docs/get_moto_pos_desvinculo.png) |
+| **Deletar moto** | `DELETE` | `/api/v1/motos/9BWZZZ377VT004251` | Resposta **204 No Content**. ![Response DELETE Moto](docs/delete_moto.png) |
+
+<br>
+
 ### 🏷️ Tags
 
 | Ação | Método | Endpoint | Observações |
 | :--- | :--- | :--- | :--- |
-| Listar todas | `GET` | `/api/v1/tags` | |
-| Listar disponíveis | `GET` | `/api/v1/motos/tags-disponiveis` | Tags sem vínculo com motos. |
-| Buscar específica | `GET` | `/api/v1/tags/TAG001` | |
-| **Criar nova tag** | `POST` | `/api/v1/tags` | **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
-| **Atualizar tag** | `PUT` | `/api/v1/tags/TAG003` | Só altera se a tag não estiver vinculada. **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
-| **Deletar tag** | `DELETE` | `/api/v1/tags/TAG003` | Só deleta se a tag não estiver vinculada. **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
+| Listar tags disponíveis | `GET` | `/api/v1/motos/tags-disponiveis` | Retorna tags sem vínculo (antes da associação). ![Tags Disponíveis](docs/get_tags_disp.png) |
+| Tags Pós Associação | `GET` | `/api/v1/motos/tags-disponiveis` | Retorna tags sem vínculo (depois da associação). ![Tags Pós Associação](docs/get_tags_disp_apos_associar_tag.png) |
+
+<br>
 
 ### 🏢 Setores
 
 | Ação | Método | Endpoint | Observações |
 | :--- | :--- | :--- | :--- |
-| Listar todos | `GET` | `/setores` | |
-| Buscar específico | `GET` | `/setores/1` | |
-| **Criar novo setor** | `POST` | `/setores` | **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
-| **Atualizar setor** | `PUT` | `/setores/3` | **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
-| **Deletar setor** | `DELETE` | `/setores/3` | **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
+| Listar todos os setores | `GET` | `/setores` | Retorna todos os setores cadastrados. ![Response GET Setores](docs/get_setores.png) |
 
-### 👤 Usuários
-
-| Ação | Método | Endpoint | Observações |
-| :--- | :--- | :--- | :--- |
-| Listar todos | `GET` | `/usuarios` | |
-| Buscar específico | `GET` | `/usuarios/1` | |
-| **Criar novo usuário** | `POST` | `/usuarios` | Usa o header `Idempotency-Key` para garantir que a operação não seja duplicada. **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
-| **Atualizar usuário** | `PUT` | `/usuarios/1` | **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
-| **Deletar usuário** | `DELETE` | `/usuarios/1` | **(ADICIONE PRINT DA RESPONSE DO SCALAR AQUI)** |
+<br>
 
 -----
 
