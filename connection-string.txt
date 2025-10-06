@@ -1,0 +1,7 @@
+CONNECTION_STRING=Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle.fiap.com.br)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=ORCL)));User Id=rm554945;Password=020797;
+
+INSTRUÇÕES:
+
+1. Cole esta connection string no appsettings.json na seção "ConnectionStrings" -> "FiapOracleDb"
+2. Execute: dotnet run
+3. Acesse: https://localhost:PORTA/scalar/v1
